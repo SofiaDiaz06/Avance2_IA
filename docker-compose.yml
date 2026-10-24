@@ -4,6 +4,7 @@ services:
     container_name: ia_python
     volumes:
       - ./src:/app/src
+      - ./proyecto:/app/proyecto
       - ./notebooks:/app/notebooks
       - ./data:/app/data
     working_dir: /app
