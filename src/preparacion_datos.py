@@ -1,92 +1,61 @@
 import pandas as pd
 import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
+import io
+import os
 
-sns.set_theme(style="whitegrid", context="talk")
+# 1. Cargar el dataset simulado
+csv_data = """id_producto,nombre,categoria,precio_venta,costo_compra,unidades_vendidas,stock_actual,dias_sin_venta,calificacion_cliente
+1,Organizador_Plástico,Hogar,15000,8000,145,18,2,4.7
+2,Vaso_Plástico_6_Unidades,Hogar,12000,6500,98,25,4,4.5
+3,Recipiente_Hermético,Hogar,18000,10000,76,14,6,4.6
+4,Espejo_Pequeño,Belleza,12000,5500,112,20,3,4.8
+5,Labial_Mate,Belleza,10000,4500,185,22,1,4.7
+6,Esmalte_Para_Uñas,Belleza,7000,3000,210,30,1,4.6
+7,Brocha_Maquillaje,Belleza,9000,4000,125,15,3,4.5
+8,Cuaderno_Argollado,Papeleria,12000,6500,160,35,2,4.8
+9,Paquete_Lapiceros,Papeleria,6000,2800,245,40,1,4.7
+10,Marcadores_Colores,Papeleria,15000,8000,88,20,5,4.4
+11,Carpeta_Plástica,Papeleria,4000,1800,190,45,2,4.6
+12,Globo_Número,Fiesta,5000,2200,135,25,3,4.7
+13,Bolsas_Regalo,Fiesta,4000,1800,175,32,2,4.6
+14,Vela_Aromática,Fiesta,10000,5500,42,38,18,4.1
+15,Confeti_Decorativo,Fiesta,5000,2500,28,55,35,3.9
+16,Bolsito_Casual,Accesorios,25000,12000,65,18,7,4.5
+17,Monedero,Accesorios,12000,5500,92,12,4,4.6
+18,Llavero_Decorativo,Accesorios,6000,2500,155,20,2,4.7
+19,Carrito_Juguete,Juguetes,15000,8500,34,48,22,4.0
+20,Muñeca_Pequeña,Juguetes,18000,10000,25,42,30,3.8
+21,Rompecabezas,Juguetes,20000,11000,18,35,45,3.7
+22,Pelota_Pequeña,Juguetes,8000,3500,120,15,5,4.4
+"""
 
-def cargar_datos(archivo_csv):
-    try:
-        df = pd.read_csv(archivo_csv)
-        print(f"Datos cargados correctamente: {df.shape[0]} filas, {df.shape[1]} columnas.")
-        return df
-    except FileNotFoundError:
-        print(f"Error: El archivo '{archivo_csv}' no existe.")
-        return None
+df = pd.read_csv(io.StringIO(csv_data))
 
-def explorar_datos(df):
-    print("\nPRIMERAS 5 FILAS:")
-    print(df.head())
-    print("\nINFORMACIÓN GENERAL:")
-    print(df.info())
-    print("\nESTADÍSTICAS DESCRIPTIVAS:")
-    print(df.describe())
-    print("\nVALORES NULOS POR COLUMNA:")
-    print(df.isnull().sum())
+print("="*60)
+print("INSPECCIÓN INICIAL DE DATOS")
+print("="*60)
+print(f"Dimensiones (shape): {df.shape}")
+print(f"Valores nulos por columna:\n{df.isnull().sum()}")
+print(f"Filas duplicadas: {df.duplicated().sum()}")
 
-def limpiar_datos(df):
-    df_limpio = df.copy()
-    mediana_edad = df_limpio['cliente_edad'].median()
-    df_limpio['cliente_edad'] = df_limpio['cliente_edad'].fillna(mediana_edad)
-    print(f"\nValores nulos en 'cliente_edad' imputados con la mediana: {mediana_edad}")
-    df_limpio['total_venta'] = df_limpio['precio_unitario'] * df_limpio['cantidad']
-    print("Columna 'total_venta' creada.")
-    return df_limpio
+# Corrige erratas de categoría
+df['categoria'] = df['categoria'].replace({'Juquetes': 'Juguetes'})
 
-def visualizar_datos(df):
-    plt.figure(figsize=(8, 5))
-    sns.histplot(data=df, x='total_venta', bins=10, kde=True, color='skyblue')
-    plt.title('Distribución del Total de Ventas')
-    plt.xlabel('Total de Venta ($)')
-    plt.ylabel('Frecuencia')
-    plt.tight_layout()
-    plt.savefig('distribucion_ventas.png', dpi=150)
-    plt.close()
+# 2. Creación de variables derivadas clave
+df['ganancia_unitaria'] = df['precio_venta'] - df['costo_compra']
+df['margen_ganancia'] = df['ganancia_unitaria'] / df['precio_venta']
+df['rotacion_diaria'] = df['unidades_vendidas'] / (df['dias_sin_venta'] + 1)
 
-    plt.figure(figsize=(10, 6))
-    sns.barplot(data=df, x='categoria', y='total_venta', estimator=np.sum, errorbar=None, palette='viridis')
-    plt.title('Total de Ventas por Categoría')
-    plt.xlabel('Categoría')
-    plt.ylabel('Total de Ventas ($)')
-    plt.tight_layout()
-    plt.savefig('ventas_por_categoria.png', dpi=150)
-    plt.close()
+# 3. Definición de la Variable Objetivo (0 o 1)
+df['decisión_abastecer'] = np.where((df['unidades_vendidas'] >= 100) & (df['margen_ganancia'] >= 0.40), 1, 0)
 
-    plt.figure(figsize=(8, 6))
-    sns.scatterplot(data=df, x='cliente_edad', y='total_venta', hue='categoria', style='metodo_pago', s=100)
-    plt.title('Relación: Edad del Cliente vs Total de Venta')
-    plt.xlabel('Edad del Cliente')
-    plt.ylabel('Total de Venta ($)')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.tight_layout()
-    plt.savefig('edad_vs_venta.png', dpi=150)
-    plt.close()
+print("\n" + "="*60)
+print("INSPECCIÓN FINAL DESPUÉS DE LA LIMPIEZA")
+print("="*60)
+print(f"Dimensiones finales: {df.shape}")
+print(f"Nulos totales: {df.isnull().sum().sum()}")
 
-def preparar_ml(df):
-    df_ml = df.copy()
-    df_ml = pd.get_dummies(df_ml, columns=['categoria', 'metodo_pago'], prefix=['cat', 'pago'])
-    print("\nCodificación One-Hot aplicada.")
-    columnas_a_eliminar = ['id_venta', 'fecha', 'producto', 'ciudad']
-    df_ml = df_ml.drop(columns=columnas_a_eliminar, errors='ignore')
-    print("Columnas no numéricas eliminadas.")
-    print("\nDATAFRAME LISTO PARA MACHINE LEARNING (primeras 5 filas):")
-    print(df_ml.head())
-    return df_ml
-
-def main():
-    print("=" * 60)
-    print("PREPARACIÓN DE DATOS PARA MACHINE LEARNING - VENTAS")
-    print("=" * 60)
-    df = cargar_datos('ventas_tienda.csv')
-    if df is None:
-        return
-    explorar_datos(df)
-    df_limpio = limpiar_datos(df)
-    visualizar_datos(df_limpio)
-    df_ml = preparar_ml(df_limpio)
-    df_ml.to_csv('ventas_preparadas_ml.csv', index=False)
-    print("\nDataset preparado guardado como 'ventas_preparadas_ml.csv'")
-    print("\nProceso completado exitosamente.")
-
-if __name__ == "__main__":
-    main()
+# Exportar datos limpios
+os.makedirs('data', exist_ok=True)
+df.to_csv('data/proyecto_limpio.csv', index=False)
+print("Dataset limpio guardado exitosamente en 'data/proyecto_limpio.csv'.")
